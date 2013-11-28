@@ -110,6 +110,7 @@ class Database(object):
            +--------------------+
 
         """
+<<<<<<< HEAD
 
         tables = list(set(self.metadata.tables.keys() +
                          self._tables.keys()))
@@ -129,6 +130,10 @@ class Database(object):
 
         return output
 
+=======
+        return list(set(self.metadata.tables.keys() +
+                        self._tables.keys()))
+>>>>>>> parent of 572d302... format output of tables
 
     def create_table(self, table_name, primary_id='id', primary_type='Integer'):
         """
