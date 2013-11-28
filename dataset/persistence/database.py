@@ -96,39 +96,25 @@ class Database(object):
 
         >>> print db.tables
         set([u'user', u'action'])
-
-        print table in the following format,
-
-           +--------------------+
-           | Tables_in_database |
-           +--------------------+
-           | table1             |
-           | table2             |
-           | table3             |
-           | table4             |
-           | table5             |
-           +--------------------+
-
         """
 <<<<<<< HEAD
+<<<<<<< HEAD
 
+=======
+        #return list(set(self.metadata.tables.keys() +
+        #                self._tables.keys()))
+>>>>>>> parent of 9f98c00... print table with more readable format
         tables = list(set(self.metadata.tables.keys() +
                          self._tables.keys()))
-        if not tables:
-            return 'Empty database'
-
         max_len = max(len(table) for table in tables)
         title = 'Tables_in_database'
         max_len = max(len(title), max_len)
 
-        output = '+-'+'-'*max_len+'-+'+'\n'
-        output += '| '+title+'|'.rjust(2+max_len-len(title))+'\n'
-        output += '+-'+'-'*max_len+'-+'+'\n'
-        for table in sorted(tables):
-            output += '| '+table+'|'.rjust(2+max_len-len(table))+'\n'
-        output += '+-'+'-'*max_len+'-+'+'\n'
-
-        return output
+        print('+-'+'-'*max_len+'-+')
+        print('| '+title+(max_len-len(title))*' '+' |')
+        print('+-'+'-'*max_len+'-+')
+        for table in tables:
+            print('| '+table)
 
 =======
         return list(set(self.metadata.tables.keys() +
