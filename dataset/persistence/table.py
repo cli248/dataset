@@ -1,4 +1,5 @@
 import logging
+import copy
 from itertools import count
 
 from sqlalchemy.sql import and_, expression
@@ -125,18 +126,19 @@ class Table(object):
         if not keys or len(keys)==len(row):
             return False
         clause = [(u, row.get(u)) for u in keys]
-        """
-        Don't update the key itself, so remove any keys from the row dict
-        """
-        for key in keys:
-            if key in row.keys():
-                del row[key]
 
         if ensure:
             self._ensure_columns(row, types=types)
+
+        # Don't update the key itself, so remove any keys from the row dict
+        clean_row = copy.copy(row)
+        for key in keys:
+            if key in clean_row.keys():
+                del clean_row[key]
+
         try:
             filters = self._args_to_clause(dict(clause))
-            stmt = self.table.update(filters, row)
+            stmt = self.table.update(filters, clean_row)
             rp = self.database.executable.execute(stmt)
             return rp.rowcount > 0
         except KeyError:
