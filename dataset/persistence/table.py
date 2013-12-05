@@ -1,5 +1,4 @@
 import logging
-import copy
 from itertools import count
 
 from sqlalchemy.sql import and_, expression
@@ -131,7 +130,7 @@ class Table(object):
             self._ensure_columns(row, types=types)
 
         # Don't update the key itself, so remove any keys from the row dict
-        clean_row = copy.copy(row)
+        clean_row = row.copy()
         for key in keys:
             if key in clean_row.keys():
                 del clean_row[key]
@@ -224,6 +223,22 @@ class Table(object):
                 col = Column(name, type)
                 col.create(self.table,
                            connection=self.database.executable)
+        finally:
+            self.database._release()
+
+    def drop_column(self, name):
+        """
+        Drop the column ``name``
+        ::
+
+            table.drop_column('created_at')
+        """
+        self._check_dropped()
+        self.database._acquire()
+        try:
+            if name in self.table.columns.keys():
+                col = self.table.columns[name]
+                col.drop()
         finally:
             self.database._release()
 
