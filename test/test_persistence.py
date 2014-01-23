@@ -39,7 +39,7 @@ class DatabaseTestCase(unittest.TestCase):
 
     def test_create_table_custom_id1(self):
         pid = "string_id"
-        table = self.db.create_table("foo2", pid, 'String')
+        table = self.db.create_table("foo2", pid, 'Text')
         assert table.table.exists()
         assert len(table.table.columns) == 1, table.table.columns
         assert pid in table.table.c, table.table.c
@@ -49,19 +49,8 @@ class DatabaseTestCase(unittest.TestCase):
         assert table.find_one(string_id = 'foobar')['string_id'] == 'foobar'
 
     def test_create_table_custom_id2(self):
-        pid = "string_id"
-        table = self.db.create_table("foo3", pid, 'String(50)')
-        assert table.table.exists()
-        assert len(table.table.columns) == 1, table.table.columns
-        assert pid in table.table.c, table.table.c
-
-        table.insert({
-            'string_id': 'foobar'})
-        assert table.find_one(string_id = 'foobar')['string_id'] == 'foobar'
-
-    def test_create_table_custom_id3(self):
         pid = "int_id"
-        table = self.db.create_table("foo4", primary_id = pid)
+        table = self.db.create_table("foo3", primary_id = pid)
         assert table.table.exists()
         assert len(table.table.columns) == 1, table.table.columns
         assert pid in table.table.c, table.table.c
@@ -75,7 +64,7 @@ class DatabaseTestCase(unittest.TestCase):
 
     def test_create_table_shorthand1(self):
         pid = "int_id"
-        table = self.db['foo5', pid]
+        table = self.db['foo4', pid]
         assert table.table.exists
         assert len(table.table.columns) == 1, table.table.columns
         assert pid in table.table.c, table.table.c
@@ -89,18 +78,7 @@ class DatabaseTestCase(unittest.TestCase):
 
     def test_create_table_shorthand2(self):
         pid = "string_id"
-        table = self.db['foo6', pid, 'String']
-        assert table.table.exists
-        assert len(table.table.columns) == 1, table.table.columns
-        assert pid in table.table.c, table.table.c
-
-        table.insert({
-            'string_id': 'foobar'})
-        assert table.find_one(string_id = 'foobar')['string_id'] == 'foobar'
-
-    def test_create_table_shorthand3(self):
-        pid = "string_id"
-        table = self.db['foo7', pid, 'String(20)']
+        table = self.db['foo5', pid, 'Text']
         assert table.table.exists
         assert len(table.table.columns) == 1, table.table.columns
         assert pid in table.table.c, table.table.c
