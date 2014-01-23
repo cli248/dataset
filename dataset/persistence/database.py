@@ -1,14 +1,27 @@
 import logging
 import threading
+<<<<<<< HEAD
 from urlparse import parse_qs
 from urllib import urlencode
+=======
+import re
+
+try:
+    from urllib.parse import urlencode
+    from urllib.parse import parse_qs
+except ImportError:
+    from urllib import urlencode
+    from urlparse import parse_qs
+>>>>>>> upstream/master
 
 from sqlalchemy import create_engine
-from migrate.versioning.util import construct_engine
 from sqlalchemy.pool import NullPool
 from sqlalchemy.schema import MetaData, Column, Index
 from sqlalchemy.schema import Table as SQLATable
 from sqlalchemy import Integer, Text
+
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 
 from dataset.persistence.table import Table
 from dataset.persistence.util import ResultIter
@@ -36,9 +49,8 @@ class Database(object):
             if len(query):
                 url = url + '?' + urlencode(query, doseq=True)
         self.schema = schema
-        engine = create_engine(url, **kw)
+        self.engine = create_engine(url, **kw)
         self.url = url
-        self.engine = construct_engine(engine)
         self.metadata = MetaData(schema=schema)
         self.metadata.bind = self.engine
         if reflectMetadata:
@@ -52,6 +64,14 @@ class Database(object):
         if hasattr(self.local, 'connection'):
             return self.local.connection
         return self.engine
+
+    @property
+    def op(self):
+        if hasattr(self.local, 'connection'):
+            ctx = MigrationContext.configure(self.local.connection)
+        else:
+            ctx = MigrationContext.configure(self.engine)
+        return Operations(ctx)
 
     def _acquire(self):
         self.lock.acquire()
@@ -99,6 +119,7 @@ class Database(object):
         """
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
         #return list(set(self.metadata.tables.keys() +
@@ -128,9 +149,23 @@ class Database(object):
         as the primary key of the table. Automatic id is set to be an 
         auto-incrementing integer, while the type of custom primary_id can be a 
         Text or an Integer as specified with primary_type flag. 
+=======
+        return list(
+            set(self.metadata.tables.keys()) | set(self._tables.keys())
+        )
+
+    def create_table(self, table_name, primary_id='id', primary_type='Integer'):
+        """
+        Creates a new table. The new table will automatically have an `id` column
+        unless specified via optional parameter primary_id, which will be used
+        as the primary key of the table. Automatic id is set to be an
+        auto-incrementing integer, while the type of custom primary_id can be a
+        String or an Integer as specified with primary_type flag. The default
+        length of String is 256. The caller can specify the length.
+>>>>>>> upstream/master
         The caller will be responsible for the uniqueness of manual primary_id.
 
-        This custom id feature is only available via direct create_table call. 
+        This custom id feature is only available via direct create_table call.
 
         Returns a :py:class:`Table <dataset.Table>` instance.
         ::
@@ -184,6 +219,12 @@ class Database(object):
         finally:
             self._release()
 
+    def update_table(self, table_name):
+        self.metadata = MetaData(schema=self.schema)
+        self.metadata.bind = self.engine
+        self.metadata.reflect(self.engine)
+        return SQLATable(table_name, self.metadata)
+
     def get_table(self, table_name, primary_id='id', primary_type='Integer'):
         """
         Smart wrapper around *load_table* and *create_table*. Either loads a table
@@ -227,7 +268,7 @@ class Database(object):
         iterator will yield each result sequentially.
 
         Any keyword arguments will be passed into the query to perform
-        parameter binding. 
+        parameter binding.
         ::
 
             res = db.query('SELECT user, COUNT(*) c FROM photos GROUP BY user')

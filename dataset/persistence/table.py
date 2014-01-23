@@ -1,9 +1,13 @@
 import logging
 from itertools import count
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict  # Python < 2.7 drop-in
 
 from sqlalchemy.sql import and_, expression
 from sqlalchemy.schema import Column, Index
-
+from sqlalchemy import alias
 from dataset.persistence.util import guess_type
 from dataset.persistence.util import ResultIter
 from dataset.util import DatasetException
@@ -68,7 +72,8 @@ class Table(object):
         if ensure:
             self._ensure_columns(row, types=types)
         res = self.database.executable.execute(self.table.insert(row))
-        return res.inserted_primary_key[0]
+        if len(res.inserted_primary_key) > 0:
+            return res.inserted_primary_key[0]
 
     def insert_many(self, rows, chunk_size=1000, ensure=True, types={}):
         """
@@ -118,9 +123,8 @@ class Table(object):
         ``types``, matching the behavior of :py:meth:`insert() <dataset.Table.insert>`.
         """
         # check whether keys arg is a string and format as a list
-        if isinstance(keys, basestring):
+        if not isinstance(keys, (list, tuple)):
             keys = [keys]
-            
         self._check_dropped()
         if not keys or len(keys)==len(row):
             return False
@@ -153,9 +157,8 @@ class Table(object):
             table.upsert(data, ['id'])
         """
         # check whether keys arg is a string and format as a list
-        if isinstance(keys, basestring):
+        if not isinstance(keys, (list, tuple)):
             keys = [keys]
-            
         self._check_dropped()
         if ensure:
             self.create_index(keys)
@@ -220,9 +223,11 @@ class Table(object):
         self.database._acquire()
         try:
             if name not in self.table.columns.keys():
-                col = Column(name, type)
-                col.create(self.table,
-                           connection=self.database.executable)
+                self.database.op.add_column(
+                    self.table.name,
+                    Column(name, type)
+                )
+                self.table = self.database.update_table(self.table.name)
         finally:
             self.database._release()
 
@@ -237,8 +242,11 @@ class Table(object):
         self.database._acquire()
         try:
             if name in self.table.columns.keys():
-                col = self.table.columns[name]
-                col.drop()
+                self.database.op.drop_column(
+                    self.table.name,
+                    name
+                )
+                self.table = self.database.update_table(self.table.name)
         finally:
             self.database._release()
 
@@ -280,7 +288,7 @@ class Table(object):
         rp = self.database.executable.execute(query)
         data = rp.fetchone()
         if data is not None:
-            return dict(zip(rp.keys(), data))
+            return OrderedDict(zip(rp.keys(), data))
 
     def _args_to_order_by(self, order_by):
         if order_by[0] == '-':
@@ -317,15 +325,15 @@ class Table(object):
         For more complex queries, please use :py:meth:`db.query() <dataset.Database.query>`
         instead."""
         self._check_dropped()
-        if isinstance(order_by, (str, unicode)):
+        if not isinstance(order_by, (list, tuple)):
             order_by = [order_by]
-        order_by = filter(lambda o: o in self.table.columns, order_by)
+        order_by = [o for o in order_by if o in self.table.columns]
         order_by = [self._args_to_order_by(o) for o in order_by]
 
         args = self._args_to_clause(_filter)
 
         # query total number of rows first
-        count_query = self.table.count(whereclause=args, limit=_limit, offset=_offset)
+        count_query = alias(self.table.select(whereclause=args, limit=_limit, offset=_offset), name='count_query_alias').count()
         rp = self.database.executable.execute(count_query)
         total_row_count = rp.fetchone()[0]
 
@@ -345,8 +353,6 @@ class Table(object):
                 qlimit = min(_limit - (_step * i), _step)
             if qlimit <= 0:
                 break
-            if qoffset > total_row_count:
-                break
             queries.append(self.table.select(whereclause=args, limit=qlimit,
                                              offset=qoffset, order_by=order_by))
         return ResultIter((self.database.executable.execute(q) for q in queries))
@@ -355,8 +361,8 @@ class Table(object):
         """
         Returns the number of rows in the table.
         """
-        d = self.database.query(self.table.count()).next()
-        return d.values().pop()
+        d = next(self.database.query(self.table.count()))
+        return list(d.values()).pop()
 
     def distinct(self, *columns, **_filter):
         """
